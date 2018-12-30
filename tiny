@@ -38,8 +38,33 @@ def do_go(args):
 def do_start(args):
   logging.debug("doing : start")
 
+  if args.i.state['Name'] == "running":
+    logging.debug("stop : already running")
+    return
+
+  logging.debug("start : ok...starting")
+  r = args.i.start()
+  info = r['StartingInstances'][0]
+  logging.debug( "prev state: %s  .. current state: %s" % (info['PreviousState']['Name'], info['CurrentState']['Name'] ))
+  logging.debug("waiting to start?....")
+  args.i.wait_until_running(Filters=args.fs) # blocks !!!
+  logging.debug("started: waiting done for start")
+
 def do_stop(args):
   logging.debug("doing : stop")
+  
+  if args.i.state['Name'] == "stopped":
+    logging.debug("stop : already stopped")
+    return
+
+  logging.debug("stop : ok...stopping")
+  r = args.i.stop()
+  info = r['StoppingInstances'][0]
+  logging.debug( "prev state: %s  .. current state: %s" % (info['PreviousState']['Name'], info['CurrentState']['Name'] ))
+  logging.debug("waiting to stop?....")
+  args.i.wait_until_stopped(Filters=args.fs) # blocks !!!
+  logging.debug("stopped: waiting done for stop")
+
 
 def do_network(args):
   logging.debug("doing : network")
@@ -107,6 +132,11 @@ if __name__ == '__main__':
   
   # TODO: make sure command is in do 
 
+  # set filter, instance for this instance name
+  args.fs = [{'Name':'tag:Name', 'Values':[args.instance]}]
   args.i = b_getEC2( args.instance )
+
   main(args, loglevel)
+
+
 
