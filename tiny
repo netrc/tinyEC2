@@ -47,13 +47,13 @@ def do_network(args):
 def do_status(args):
   logging.debug("doing : status")
 
-  tinyEC2 = b_getEC2( args.instance )
-  print tinyEC2
-  print tinyEC2.architecture
-  print tinyEC2.image_id
-  print tinyEC2.instance_id
-  print tinyEC2.instance_type
-  print tinyEC2.state
+  print "i ==", args.i
+  print "archicture ==", args.i.architecture
+  print "image_id ==", args.i.image_id
+  print "instance_id ==", args.i.instance_id
+  print "instance_type ==", args.i.instance_type
+  print "state ==", args.i.state
+  print "public_dns_name ==", args.i.public_dns_name
 
 
 do = {
@@ -107,5 +107,6 @@ if __name__ == '__main__':
   
   # TODO: make sure command is in do 
 
+  args.i = b_getEC2( args.instance )
   main(args, loglevel)
 
