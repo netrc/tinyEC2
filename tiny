@@ -2,11 +2,10 @@
 #
 # usage: $0  go | start | stop | network | status
 
-# import modules used here -- sys is a very standard one
 import sys, argparse, logging
 
 #############
-#  boto
+#  boto tooling
 DefaultInstanceName = "tinyEC2"     # which is stuffed in to args.instance
 
 import boto3.ec2
