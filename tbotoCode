@@ -1,0 +1,128 @@
+#!/usr/bin/python
+
+# usage: $0  justrun juststop justopen  go
+import boto3.ec2
+import pprint
+
+#print boto.Version
+#conn = boto3.ec2.connect_to_region("us-east-1")
+
+#print 'client.....'
+#ec2 = boto3.client('ec2')
+#resp = ec2.describe_instances()
+#pprint.pprint(resp)
+## resp.
+#print resp['ResponseMetadata']['HTTPStatusCode']
+#
+#for r in resp['Reservations']:
+#  for i in r['Instances']:
+#    print i['InstanceId'], i['InstanceType']
+
+
+print 'resource.....'
+ec2r = boto3.resource('ec2')
+#for i in ec2r.instances.all():
+#  print i
+fs = [{'Name':'tag:Name', 'Values':['tinyEC2']}]
+#for i in ec2r.instances.filter(Filters=fs):
+#  print i
+ilist=list(ec2r.instances.filter(Filters=fs))
+if len(ilist) > 1:
+  print "odd that there is more than one tinyEC2"
+  for i in ec2r.instances.filter(Filters=fs):
+    print i
+  sys.exit()
+
+tinyEC2 = ilist[0]   # there is just one
+print '==', tinyEC2
+print tinyEC2.architecture
+print tinyEC2.image_id
+print tinyEC2.instance_id
+print tinyEC2.instance_type
+print tinyEC2.state
+
+# justclose
+print "juststop..."
+r = tinyEC2.stop()
+info = r['StoppingInstances'][0]
+print info['InstanceId']
+print info['PreviousState']['Name']
+print info['CurrentState']['Name']
+
+print "waiting to stop?...."
+tinyEC2.wait_until_stopped(Filters=fs) # blocks !!!
+print "done waiting"
+sys.exit()
+
+# sgs = list(ec2.security_groups.all())
+#for sg in ec2r.security_groups.all():
+tsgl = [sg for sg in ec2r.security_groups.all() if sg.group_name == "tinyEC2-sg" ]
+if len(tsgl) > 1:
+  print "tsgl is bigger than 1"
+  sys.exit()
+secg = tsgl[0]
+#print secg.group_name, secg.group_id
+#pprint.pprint(sg)
+
+
+
+#secgid="sg-0a03495011a6a6447"
+secgid="sg-77eb2200"
+secg = ec2r.SecurityGroup(secgid)
+print "orig secgid", secg
+print secg.description
+print secg.group_id
+print secg.group_name
+pprint.pprint(secg.ip_permissions)
+
+
+for e in secg.ip_permissions:
+  #print e['FromPort']
+  if e['IpRanges']:
+    for ipr in e['IpRanges']:
+      print "ipr desc", ipr['Description']
+
+myHomeSubnet = '74.105.216.0/24'
+ipperms = [ { 
+    'IpProtocol': 'TCP',
+    'IpRanges': [ { 
+        'CidrIp': myHomeSubnet, 'Description':'autohome ssh'
+        } ],
+    'FromPort': 22,   # ssh
+    'ToPort': 22,   # only ssh
+    }, { 
+    'IpProtocol': 'TCP',
+    'IpRanges': [ { 
+        'CidrIp': myHomeSubnet, 'Description':'autohome http'
+        } ],
+    'FromPort': 8000,   # http begin
+    'ToPort': 8100,   # http end
+    } ]
+secg.authorize_ingress(IpPermissions=ipperms)
+
+
+print "to run?...."
+r = tinyEC2.start()
+info = r['StartingInstances'][0]
+#r = tinyEC2.stop()
+#info = r['StoppingInstances'][0]
+print info['InstanceId']
+print info['PreviousState']['Name']
+print info['CurrentState']['Name']
+
+print "waiting to run?...."
+tinyEC2.wait_until_running(Filters=fs) # blocks !!!
+#print "waiting to stop?...."
+#tinyEC2.wait_until_stopped(Filters=fs) # blocks !!!
+print "done waiting"
+
+# try to get public dns
+print "try to get public dns"
+tinyEC2.load()   # reload info
+print '==', tinyEC2
+print tinyEC2.architecture
+print tinyEC2.image_id
+print tinyEC2.instance_id
+print tinyEC2.instance_type
+print tinyEC2.state
+print tinyEC2.public_dns_name

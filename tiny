@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+#
+# usage: $0  go | start | stop | network | status
+
+# import modules used here -- sys is a very standard one
+import sys, argparse, logging
+
+#############
+#  boto
+DefaultInstanceName = "tinyEC2"     # which is stuffed in to args.instance
+
+import boto3.ec2
+import pprint
+
+def b_getEC2( n ):
+  ec2r = boto3.resource('ec2')
+  fs = [{'Name':'tag:Name', 'Values':[n]}]
+  #for i in ec2r.instances.filter(Filters=fs):
+  #  print i
+  ilist=list(ec2r.instances.filter(Filters=fs))
+  if len(ilist) > 1:
+    print "odd that there is more than one " + n
+    for i in ec2r.instances.filter(Filters=fs):
+      print i
+    sys.exit()
+  if len(ilist) == 0:
+    print "odd that there is no instance named " + n
+    sys.exit()
+
+  return ilist[0]  # there is just one
+#############
+
+
+def do_go(args):
+  logging.debug("doing : go")
+  do_network()
+  do_start()
+
+def do_start(args):
+  logging.debug("doing : start")
+
+def do_stop(args):
+  logging.debug("doing : stop")
+
+def do_network(args):
+  logging.debug("doing : network")
+
+def do_status(args):
+  logging.debug("doing : status")
+
+  tinyEC2 = b_getEC2( args.instance )
+  print tinyEC2
+  print tinyEC2.architecture
+  print tinyEC2.image_id
+  print tinyEC2.instance_id
+  print tinyEC2.instance_type
+  print tinyEC2.state
+
+
+do = {
+  "go": do_go,
+  "start": do_start,
+  "stop": do_stop,
+  "network": do_network,
+  "status": do_status
+}
+
+#########
+# 
+#
+def main(args, loglevel):
+  logging.basicConfig(format="%(levelname)s: %(message)s", level=loglevel)
+  
+  logging.debug("command : %s" % args.command)
+  logging.debug("noaction : %s" % args.noAction)
+
+  do[args.command[0]](args)
+
+  
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser( 
+                    description = "Helper for tinyEC2 instance"
+                    # q.v. https://gist.githubusercontent.com/opie4624/3896526/raw/3aff2ad7030a74ce26f9fcf80791ae0396d84f18/commandline.py
+                    # epilog = "params can be in a file and '%(prog)s @params.conf'.",
+                    # fromfile_prefix_chars = '@' 
+          )
+
+  parser.add_argument(
+                      "command", nargs=1, action="store",  # type string
+                      help = "command - one of "+" ".join(do),
+                      metavar = "command")
+  parser.add_argument( "-v", "--verbose",
+                      help="increase output verbosity",
+                      action="store_true")
+  parser.add_argument( "-n", "--noAction",
+                      help="don't execute",
+                      default=False, action="store_true")
+  parser.add_argument( "-i", "--instance",
+                      help="name of instance [%s]" % DefaultInstanceName,
+                      default=DefaultInstanceName)
+  args = parser.parse_args()
+  
+  # Setup logging
+  if args.verbose:
+    loglevel = logging.DEBUG
+  else:
+    loglevel = logging.INFO
+  
+  # TODO: make sure command is in do 
+
+  main(args, loglevel)
+
