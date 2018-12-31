@@ -35,6 +35,7 @@ def do_go(args):
   logging.debug("doing : go")
   do_network()
   do_start()
+  do_dns()
 
 def do_start(args):
   logging.debug("doing : start")
@@ -50,6 +51,8 @@ def do_start(args):
   logging.debug("waiting to start?....")
   args.i.wait_until_running(Filters=args.fs) # blocks !!!
   logging.debug("started: waiting done for start")
+  # TODO: stick new public IP address in args? or where?
+    
 
 def do_stop(args):
   logging.debug("doing : stop")
@@ -78,11 +81,46 @@ def do_network(args):
   externSubnet = externAddress[0:externAddress.rindex(".")] + ".0/24"
   logging.debug("externSubnet: %s" % externSubnet )
 
-  # get all sec group ingress entries
+  # TODO: get all sec group ingress entries
   # for each
-  # clear out all old "tinyauto" entries
-  # add entries for ssh and http for externAddress subnet
+  # TODO: clear out all old "tinyauto" entries
+  # TODO: add entries for ssh and http for externAddress subnet
   
+
+# q.v. https://spin.atomicobject.com/2016/04/28/route-53-hosted-zone-managment/
+def do_dns(args):
+  logging.debug("doing: dns")
+  r53c = boto3.client('route53')
+
+  r = r53c.list_hosted_zones_by_name( DNSName='netrc.com.')
+  #print("got response")  #TODO: check if valid/200
+  #pprint.pprint(r)
+  hzList = r['HostedZones']
+  zIdList = [ z['Id'] for z in hzList if z['Name'] == "netrc.com." ]
+  if len(zIdList) == 0:
+    print("odd that no zones with Name netrc.com")
+    sys.exit(1)
+  logging.debug("zone id netrc.com: %s" % zIdList[0])
+  zId = zIdList[0].split("/")[2]
+  print "netrc.com zone id: ", zId
+
+  instance_ip = "9.7.5.3"    TODO: from 'start' process?
+  ipUpdate = {
+    'Changes': [ {
+                'Action': 'UPSERT',
+                'ResourceRecordSet': {
+                    'Name': "tinyec2.netrc.com.",
+                    'Type': 'A',
+                    'ResourceRecords': [ {
+                            'Value': instance_ip
+                        } ],
+                    'TTL': 300
+                }
+            } ]
+    }
+  r = r53c.change_resource_record_sets( HostedZoneId=zId, ChangeBatch=ipUpdate )
+  logging.debug("return status: %s" % r['ChangeInfo']['Status'])
+
 
 def do_status(args):
   logging.debug("doing : status")
@@ -101,6 +139,7 @@ do = {
   "start": do_start,
   "stop": do_stop,
   "network": do_network,
+  "dns": do_dns,
   "status": do_status
 }
 
