@@ -3,6 +3,7 @@
 # usage: $0  go | start | stop | network | status
 
 import sys, argparse, logging
+import subprocess
 
 #############
 #  boto tooling
@@ -68,6 +69,16 @@ def do_stop(args):
 
 def do_network(args):
   logging.debug("doing : network")
+  externAddress = subprocess.check_output( ['curl','-s', 'https://ipecho.net/plain'] )
+  logging.debug("ipecho.net externAddress: %s" % externAddress )
+  externSubnet = ".".join(externAddress.split(".")[0:3]) + ".0/24"
+  logging.debug("externSubnet: %s" % externSubnet )
+
+  # get all sec group ingress entries
+  # for each
+  # clear out all old "tinyauto" entries
+  # add entries for ssh and http for externAddress subnet
+  
 
 def do_status(args):
   logging.debug("doing : status")
