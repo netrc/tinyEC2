@@ -123,6 +123,11 @@ if __name__ == '__main__':
                       help="name of instance [%s]" % DefaultInstanceName,
                       default=DefaultInstanceName)
   args = parser.parse_args()
+
+  if not args.command[0] in do:
+    print "invalid command"
+    parser.print_help()
+    sys.exit(1)
   
   # Setup logging
   if args.verbose:
