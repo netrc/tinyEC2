@@ -90,6 +90,13 @@ def do_network(args):
 # q.v. https://spin.atomicobject.com/2016/04/28/route-53-hosted-zone-managment/
 def do_dns(args):
   logging.debug("doing: dns")
+  logging.debug("public ip: %s" % args.i.public_ip_address)
+  if args.i.public_ip_address == None:
+    print "can't get public ip right now"
+    sys.exit(1)
+  instance_ip = args.i.public_ip_address
+  print "public ip: ", instance_ip
+
   r53c = boto3.client('route53')
 
   r = r53c.list_hosted_zones_by_name( DNSName='netrc.com.')
@@ -104,7 +111,6 @@ def do_dns(args):
   zId = zIdList[0].split("/")[2]
   print "netrc.com zone id: ", zId
 
-  instance_ip = "9.7.5.3"    TODO: from 'start' process?
   ipUpdate = {
     'Changes': [ {
                 'Action': 'UPSERT',
@@ -132,6 +138,8 @@ def do_status(args):
   print "instance_type ==", args.i.instance_type
   print "state ==", args.i.state
   print "public_dns_name ==", args.i.public_dns_name
+  print "public_ip_address == ", args.i.public_ip_address
+
 
 
 do = {
