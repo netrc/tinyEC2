@@ -69,9 +69,13 @@ def do_stop(args):
 
 def do_network(args):
   logging.debug("doing : network")
-  externAddress = subprocess.check_output( ['curl','-s', 'https://ipecho.net/plain'] )
+  #ea_cmd = ['curl', '-s', 'https://ipecho.net/plain']
+  #ea_cmd = ['curl', '-s', 'ident.me']
+  ea_cmd = ['curl', '-s', 'checkip.amazonaws.com']
+  externAddress = subprocess.check_output( ea_cmd )
   logging.debug("ipecho.net externAddress: %s" % externAddress )
-  externSubnet = ".".join(externAddress.split(".")[0:3]) + ".0/24"
+  #externSubnet = ".".join(externAddress.split(".")[0:3]) + ".0/24"
+  externSubnet = externAddress[0:externAddress.rindex(".")] + ".0/24"
   logging.debug("externSubnet: %s" % externSubnet )
 
   # get all sec group ingress entries
