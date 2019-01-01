@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # usage: $0  go | start | stop | network | status
 
@@ -19,12 +19,12 @@ def b_getEC2( n ):
   #  print i
   ilist=list(ec2r.instances.filter(Filters=fs))
   if len(ilist) > 1:
-    print "odd that there is more than one " + n
+    print("odd that there is more than one: %d" % n)
     for i in ec2r.instances.filter(Filters=fs):
-      print i
+      print(i)
     sys.exit()
   if len(ilist) == 0:
-    print "odd that there is no instance named " + n
+    print("odd that there is no instance named " % n)
     sys.exit()
 
   return ilist[0]  # there is just one
@@ -69,33 +69,98 @@ def do_stop(args):
   args.i.wait_until_stopped(Filters=args.fs) # blocks !!!
   logging.debug("stopped: waiting done for stop")
 
+def hasTags( tagList, kStr, vStr ):
+  #logging.debug("hastags: k: %s  v: %s" % (kStr, vStr) )
+  if tagList == None:
+    #logging.debug("hastags: None list")
+    return False
+  #logging.debug("hastags: tl: %s" % tagList )
+  return any( [ True for t in tagList if t['Key']==kStr and t['Value']==vStr ] )
 
 def do_network(args):
   logging.debug("doing : network")
   #ea_cmd = ['curl', '-s', 'https://ipecho.net/plain']
   #ea_cmd = ['curl', '-s', 'ident.me']
   ea_cmd = ['curl', '-s', 'checkip.amazonaws.com']
-  externAddress = subprocess.check_output( ea_cmd )
+  externAddress = subprocess.check_output( ea_cmd ).decode("utf-8")
   logging.debug("ipecho.net externAddress: %s" % externAddress )
   #externSubnet = ".".join(externAddress.split(".")[0:3]) + ".0/24"
   externSubnet = externAddress[0:externAddress.rindex(".")] + ".0/24"
-  logging.debug("externSubnet: %s" % externSubnet )
+  print("externSubnet: %s" % externSubnet )
 
   # TODO: get all sec group ingress entries
+  # get instance sec group
   # for each
   # TODO: clear out all old "tinyauto" entries
   # TODO: add entries for ssh and http for externAddress subnet
   
+  ec2r = boto3.resource('ec2')
+  # TODO: don't go through all sec groups; just get sec group(s) for oneinstance
+  sgs = list(ec2r.security_groups.all())
+  logging.debug( "len of sgs: %d" % len(sgs) )
+  tsgl = [sg for sg in sgs if hasTags(sg.tags, "TinyName", "tinyEC2") ]
+  if len(tsgl) > 1:
+    print("tsgl is bigger than 1: %d" % len(tsgl))
+    sys.exit()
+  secg = tsgl[0]
+  logging.debug("secg group name: %s   id: %s" % ( secg.group_name, secg.group_id) )
+
+  #secgid="sg-0a03495011a6a6447"
+  #secgid="sg-77eb2200"
+  #secg = ec2r.SecurityGroup(secgid)
+  #print "orig secgid", secg
+  #print secg.description
+  #print secg.group_id
+  #print secg.group_name
+  #pprint.pprint(secg.ip_permissions)
+
+
+  alreadyOpen = {}
+  for e in secg.ip_permissions:   # ingress perms
+    logging.debug(e['FromPort'])
+    if e['IpRanges']:
+      for ipr in e['IpRanges']:
+        logging.debug(ipr)
+        if ipr['CidrIp'] == externSubnet:
+          alreadyOpen[e['FromPort']] = True
+        else:
+          logging.debug("delete this range")
+
+  if not 22 in alreadyOpen:
+    print("need to open ssh(22)")
+  if not 8000 in alreadyOpen:
+    print("need to open http(8000)")
+
+#myHomeSubnet = '74.105.216.0/24'
+#ipperms = [ { 
+#    'IpProtocol': 'TCP',
+#    'IpRanges': [ { 
+#        'CidrIp': myHomeSubnet, 'Description':'autohome ssh'
+#        } ],
+#    'FromPort': 22,   # ssh
+#    'ToPort': 22,   # only ssh
+#    }, { 
+#    'IpProtocol': 'TCP',
+#    'IpRanges': [ { 
+#        'CidrIp': myHomeSubnet, 'Description':'autohome http'
+#        } ],
+#    'FromPort': 8000,   # http begin
+#    'ToPort': 8100,   # http end
+#    } ]
+#secg.authorize_ingress(IpPermissions=ipperms)
+
+
+####################
 
 # q.v. https://spin.atomicobject.com/2016/04/28/route-53-hosted-zone-managment/
 def do_dns(args):
   logging.debug("doing: dns")
   logging.debug("public ip: %s" % args.i.public_ip_address)
   if args.i.public_ip_address == None:
-    print "can't get public ip right now"
+    print("can't get public ip right now")
     sys.exit(1)
   instance_ip = args.i.public_ip_address
-  print "public ip: ", instance_ip
+  print("public ip: %s" % instance_ip)
 
   r53c = boto3.client('route53')
 
@@ -109,7 +174,7 @@ def do_dns(args):
     sys.exit(1)
   logging.debug("zone id netrc.com: %s" % zIdList[0])
   zId = zIdList[0].split("/")[2]
-  print "netrc.com zone id: ", zId
+  print("netrc.com zone id: %s" % zId)
 
   ipUpdate = {
     'Changes': [ {
@@ -131,14 +196,14 @@ def do_dns(args):
 def do_status(args):
   logging.debug("doing : status")
 
-  print "i ==", args.i
-  print "archicture ==", args.i.architecture
-  print "image_id ==", args.i.image_id
-  print "instance_id ==", args.i.instance_id
-  print "instance_type ==", args.i.instance_type
-  print "state ==", args.i.state
-  print "public_dns_name ==", args.i.public_dns_name
-  print "public_ip_address == ", args.i.public_ip_address
+  print("i: %s" % args.i)
+  print("archicture: %s" % args.i.architecture)
+  print("image_id: %s" % args.i.image_id)
+  print("instance_id: %s" % args.i.instance_id)
+  print("instance_type: %s" % args.i.instance_type)
+  print("state: %s" % args.i.state)
+  print("public_dns_name: %s" % args.i.public_dns_name)
+  print("public_ip_address: %s " % args.i.public_ip_address)
 
 
 
@@ -187,7 +252,7 @@ if __name__ == '__main__':
   args = parser.parse_args()
 
   if not args.command[0] in do:
-    print "invalid command"
+    print("invalid command")
     parser.print_help()
     sys.exit(1)
   
